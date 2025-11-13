@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QR Generator — Offline</title>
+  <style>
+    :root{--accent:#7c3aed}
+    *{box-sizing:border-box;transition:background .3s,color .3s}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#071123 0%,#0b1220 100%);color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px}
+    body.light{background:#f9fafb;color:#111}
+
+    .app{width:100%;max-width:600px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .brand h1{margin:0;font-size:22px}
+    .btn{padding:8px 14px;border:none;border-radius:10px;font-weight:600;cursor:pointer}
+    .btn-toggle{background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2)}
+    .btn-toggle:hover{background:rgba(255,255,255,0.3)}
+    body.light .btn-toggle{background:#fff;color:#222;border:1px solid #ccc}
+
+    .card{background:rgba(255,255,255,0.05);padding:20px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,0.4)}
+    body.light .card{background:#fff;box-shadow:0 4px 10px rgba(0,0,0,0.1)}
+
+    label{display:block;font-weight:700;margin-bottom:8px}
+    textarea{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:inherit;font-size:14px;resize:none}
+    body.light textarea{border-color:#ddd;background:#fafafa;color:#111}
+
+    .row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.2);color:#ccc}
+    .btn-ghost:hover{background:rgba(255,255,255,0.2)}
+    body.light .btn-ghost{border-color:#ccc;color:#555}
+
+    .qr-wrap{margin-top:20px;width:320px;height:320px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,255,255,0.05);padding:18px;user-select:none;-webkit-user-drag:none}
+    body.light .qr-wrap{background:#fff}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><h1 id="title">Генератор QR</h1></div>
+      <div>
+        <button class="btn btn-toggle" id="themeBtn">🌙</button>
+        <button class="btn btn-toggle" id="langBtn">Русский 🇷🇺</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <label id="labelInput">Текст или ссылка</label>
+      <textarea id="input" rows="6" placeholder="Например: https://example.com"></textarea>
+      <div class="row">
+        <button class="btn btn-primary" id="genBtn">Сгенерировать</button>
+        <button class="btn btn-ghost" id="downloadBtn">Скачать PNG</button>
+        <button class="btn btn-ghost" id="clearBtn">Очистить</button>
+      </div>
+      <div class="qr-wrap" id="qrWrap">
+        <canvas id="qrCanvas" width="320" height="320"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script>
+    const T={
+      ru:{title:'Генератор QR',inputPlaceholder:'Например: https://example.com',gen:'Сгенерировать',download:'Скачать PNG',clear:'Очистить'},
+      en:{title:'QR Generator',inputPlaceholder:'For example: https://example.com',gen:'Generate',download:'Download PNG',clear:'Clear'}
+    };
+    let lang='ru';
+    const el=id=>document.getElementById(id);
+
+    function applyLang(){
+      const d=T[lang];
+      el('title').innerText=d.title;
+      el('input').placeholder=d.inputPlaceholder;
+      el('genBtn').innerText=d.gen;
+      el('downloadBtn').innerText=d.download;
+      el('clearBtn').innerText=d.clear;
+      el('langBtn').innerText=lang==='ru'?'Русский 🇷🇺':'English 🇬🇧';
+    }
+
+    el('langBtn').addEventListener('click',()=>{
+      lang=lang==='ru'?'en':'ru';
+      applyLang();
+    });
+
+    const themeBtn=el('themeBtn');
+    themeBtn.addEventListener('click',()=>{
+      const light=document.body.classList.toggle('light');
+      themeBtn.textContent=light?'☀️':'🌙';
+    });
+
+    applyLang();
+
+    const input=el('input');
+    const genBtn=el('genBtn');
+    const downloadBtn=el('downloadBtn');
+    const clearBtn=el('clearBtn');
+    const qrCanvas=el('qrCanvas');
+
+    function generate(){
+      const text=input.value.trim();
+      if(!text){alert(lang==='ru'?'Введите текст или ссылку.':'Enter text or a link.');return;}
+      const size=320; // фиксированный размер для стабильности
+      const ec='M';
+      const qr=qrcode(0,ec);
+      qr.addData(text);
+      qr.make();
+      const cellSize=size/qr.getModuleCount();
+      const ctx=qrCanvas.getContext('2d');
+      qrCanvas.width=size;
+      qrCanvas.height=size;
+      ctx.fillStyle='#fff';
+      ctx.fillRect(0,0,size,size);
+      ctx.fillStyle='#000';
+      for(let r=0;r<qr.getModuleCount();r++){
+        for(let c=0;c<qr.getModuleCount();c++){
+          if(qr.isDark(r,c))ctx.fillRect(c*cellSize,r*cellSize,cellSize,cellSize);
+        }
+      }
+    }
+
+    genBtn.addEventListener('click',generate);
+    downloadBtn.addEventListener('click',()=>{
+      const png=qrCanvas.toDataURL('image/png');
+      const a=document.createElement('a');
+      a.href=png;
+      a.download='qrcode.png';
+      a.click();
+    });
+    clearBtn.addEventListener('click',()=>{
+      input.value='';
+      const ctx=qrCanvas.getContext('2d');
+      ctx.clearRect(0,0,qrCanvas.width,qrCanvas.height);
+    });
+  </script>
+</body>
+</html>
